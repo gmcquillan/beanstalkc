@@ -41,8 +41,11 @@ class SocketError(BeanstalkcException):
             return fn(*args, **kwargs)
         except socket.error, e:
             if hasattr(fn, 'im_self'):
-                src_ip, src_port = self._socket.getsockname()
-                dst_ip, dst_port = self._socket.getpeername()
+                src_ip, src_port = fn.im_self.getsockname()
+                dst_ip = dst_port = ''
+                if args:
+                    dst_ip = args[0][0]   # Grab first tuple argument for args (host)
+                    dst_port = args[0][1] # Grab second tuple argument (port)
                 raise SocketError('%s\nsrc address %s:%s\ndst address %s:%s' % (
                             e, src_ip, src_port, dst_ip, dst_port))
             else:
@@ -68,9 +71,6 @@ class Connection(object):
         """Connect to beanstalkd server."""
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.settimeout(self._connect_timeout)
-        src_ip, src_port = self._socket.getsockname()
-        dst_ip, dst_port = self._socket.getpeername()
-        # Passes the function reference into the wrap function -- no easy to way to pass state information too.
         SocketError.wrap(self._socket.connect, (self.host, self.port))
         self._socket.settimeout(None)
         self._socket_file = self._socket.makefile('rb')
